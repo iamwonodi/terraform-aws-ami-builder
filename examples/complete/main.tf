@@ -9,7 +9,7 @@
 ################################################################################
 
 module "ami_builder" {
-  source = "../.."
+  source = "../../"
 
   project_name = var.project_name
   environment  = var.environment
@@ -42,6 +42,17 @@ module "ami_builder" {
   instance_profile_name = var.instance_profile_name
   subnet_id             = var.subnet_id
   security_group_ids    = var.security_group_ids
+
+  # SSH access to the temporary build instance, useful for debugging a
+  # failed build. Optional -- omit if SSM Session Manager access is enough.
+  key_pair = var.key_pair
+
+  # Build logs land in this S3 bucket. Without this, diagnosing a failed
+  # build relies entirely on the console/CLI build history.
+  logging_s3_bucket_name = var.logging_bucket_name
+  logging_s3_key_prefix  = "ami-builder-logs"
+
+  sns_topic_arn = var.sns_topic_arn
 
   # Set true when an immediate build is required.
   build_image = var.build_image

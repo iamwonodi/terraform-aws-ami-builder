@@ -24,6 +24,17 @@ variable "environment" {
   }
 }
 
+variable "image_name" {
+  type        = string
+  description = "Distinguishing name segment used in every Image Builder resource this module creates. Lets more than one ami-builder instance -- called directly, or through a wrapper module -- coexist within the same project_name/environment without colliding on AWS resource names."
+  default     = "ami"
+
+  validation {
+    condition     = trimspace(var.image_name) != ""
+    error_message = "image_name must not be empty."
+  }
+}
+
 
 ################################################################################
 # IMAGE COMPONENT
@@ -215,6 +226,59 @@ variable "security_group_ids" {
 
     error_message = "security_group_ids must contain at least one non-empty security group ID."
   }
+}
+
+variable "key_pair" {
+  type        = string
+  description = "Optional EC2 key pair name for SSH access to the temporary build instance, useful for debugging a failed build."
+  default     = null
+}
+
+variable "logging_s3_bucket_name" {
+  type        = string
+  description = "Optional S3 bucket where Image Builder uploads build logs. Required together with logging_s3_key_prefix to enable build logging."
+  default     = null
+}
+
+variable "logging_s3_key_prefix" {
+  type        = string
+  description = "S3 key prefix under which build logs are stored, when logging_s3_bucket_name is set."
+  default     = null
+}
+
+variable "resource_tags" {
+  type        = map(string)
+  description = "Tags Image Builder applies to resources it creates during the build itself (the temporary EC2 instance, snapshots) -- distinct from tags, which apply to the Image Builder resources this module manages."
+  default     = {}
+}
+
+variable "sns_topic_arn" {
+  type        = string
+  description = "Optional SNS topic ARN Image Builder publishes build and pipeline events to."
+  default     = null
+}
+
+variable "placement_tenancy" {
+  type        = string
+  description = "Optional tenancy for the temporary build instance."
+  default     = null
+
+  validation {
+    condition     = var.placement_tenancy == null || contains(["default", "dedicated", "host"], var.placement_tenancy)
+    error_message = "placement_tenancy must be default, dedicated, or host."
+  }
+}
+
+variable "placement_availability_zone" {
+  type        = string
+  description = "Optional Availability Zone for the temporary build instance."
+  default     = null
+}
+
+variable "enhanced_image_metadata_enabled" {
+  type        = bool
+  description = "Whether Image Builder collects additional metadata about the image being created."
+  default     = true
 }
 
 

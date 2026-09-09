@@ -9,27 +9,27 @@ locals {
   aws_region = data.aws_region.current.region
 
   component_name = (
-    "${var.project_name}-${var.environment}-ami-component"
+    "${var.project_name}-${var.environment}-${var.image_name}-component"
   )
 
   recipe_name = (
-    "${var.project_name}-${var.environment}-ami-recipe"
+    "${var.project_name}-${var.environment}-${var.image_name}-recipe"
   )
 
   infrastructure_configuration_name = (
-    "${var.project_name}-${var.environment}-ami-build"
+    "${var.project_name}-${var.environment}-${var.image_name}-build"
   )
 
   distribution_configuration_name = (
-    "${var.project_name}-${var.environment}-ami-distribution"
+    "${var.project_name}-${var.environment}-${var.image_name}-distribution"
   )
 
   pipeline_name = (
-    "${var.project_name}-${var.environment}-ami-pipeline"
+    "${var.project_name}-${var.environment}-${var.image_name}-pipeline"
   )
 
   ami_name = (
-    "${var.project_name}-${var.environment}-ami"
+    "${var.project_name}-${var.environment}-${var.image_name}"
   )
 
   # Image Builder requires commands in the validation step.

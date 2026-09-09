@@ -194,6 +194,23 @@ variable "image_test_timeout_minutes" {
   default     = 60
 }
 
+variable "key_pair" {
+  description = "Optional EC2 key pair name for SSH access to the temporary build instance."
+  type        = string
+  default     = null
+}
+
+variable "logging_bucket_name" {
+  description = "S3 bucket where Image Builder uploads build logs."
+  type        = string
+}
+
+variable "sns_topic_arn" {
+  description = "Optional SNS topic ARN for build event notifications."
+  type        = string
+  default     = null
+}
+
 
 ################################################################################
 # TAGGING

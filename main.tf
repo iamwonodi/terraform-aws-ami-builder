@@ -41,7 +41,7 @@
 # The validate phase is created only when validation commands are provided.
 ################################################################################
 
-resource "aws_imagebuilder_component" "base" {
+resource "aws_imagebuilder_component" "this" {
   name        = local.component_name
   platform    = "Linux"
   version     = var.component_version
@@ -112,7 +112,7 @@ resource "aws_imagebuilder_component" "base" {
 # the recipe configuration or wants to consume a different parent image.
 ################################################################################
 
-resource "aws_imagebuilder_image_recipe" "base" {
+resource "aws_imagebuilder_image_recipe" "this" {
   name         = local.recipe_name
   version      = var.recipe_version
   parent_image = var.parent_image
@@ -120,7 +120,7 @@ resource "aws_imagebuilder_image_recipe" "base" {
   working_directory = "/tmp"
 
   component {
-    component_arn = aws_imagebuilder_component.base.arn
+    component_arn = aws_imagebuilder_component.this.arn
   }
 
   block_device_mapping {
@@ -156,7 +156,7 @@ resource "aws_imagebuilder_image_recipe" "base" {
 # after the build process according to AWS Image Builder's lifecycle.
 ################################################################################
 
-resource "aws_imagebuilder_infrastructure_configuration" "base" {
+resource "aws_imagebuilder_infrastructure_configuration" "this" {
   name = local.infrastructure_configuration_name
 
   instance_types = var.instance_types
@@ -166,6 +166,36 @@ resource "aws_imagebuilder_infrastructure_configuration" "base" {
   subnet_id                     = var.subnet_id
   security_group_ids            = var.security_group_ids
   terminate_instance_on_failure = true
+
+  # SSH access to the temporary build instance, for debugging a failed build.
+  key_pair = var.key_pair
+
+  # Tags Image Builder applies to resources it creates during the build
+  # itself (the temporary instance, snapshots) -- distinct from tags below,
+  # which apply to this infrastructure configuration resource.
+  resource_tags = length(var.resource_tags) > 0 ? var.resource_tags : null
+
+  sns_topic_arn = var.sns_topic_arn
+
+  dynamic "logging" {
+    for_each = var.logging_s3_bucket_name == null ? [] : [1]
+
+    content {
+      s3_logs {
+        s3_bucket_name = var.logging_s3_bucket_name
+        s3_key_prefix  = var.logging_s3_key_prefix
+      }
+    }
+  }
+
+  dynamic "placement" {
+    for_each = (var.placement_tenancy == null && var.placement_availability_zone == null) ? [] : [1]
+
+    content {
+      tenancy           = var.placement_tenancy
+      availability_zone = var.placement_availability_zone
+    }
+  }
 
   tags = merge(
     local.common_tags,
@@ -186,7 +216,7 @@ resource "aws_imagebuilder_infrastructure_configuration" "base" {
 # Terraform AWS provider.
 ################################################################################
 
-resource "aws_imagebuilder_distribution_configuration" "base" {
+resource "aws_imagebuilder_distribution_configuration" "this" {
   name = local.distribution_configuration_name
 
   distribution {
@@ -225,7 +255,7 @@ resource "aws_imagebuilder_distribution_configuration" "base" {
 # another AMI build.
 #
 # Changing var.build_trigger causes terraform_data.build_trigger to change.
-# The lifecycle configuration on aws_imagebuilder_image.base then forces that
+# The lifecycle configuration on aws_imagebuilder_image.this then forces that
 # image resource to be replaced, causing AWS Image Builder to perform another
 # AMI build.
 #
@@ -259,12 +289,14 @@ resource "terraform_data" "build_trigger" {
 # build by changing var.build_trigger.
 ################################################################################
 
-resource "aws_imagebuilder_image" "base" {
+resource "aws_imagebuilder_image" "this" {
   count = var.build_image ? 1 : 0
 
-  image_recipe_arn                 = aws_imagebuilder_image_recipe.base.arn
-  infrastructure_configuration_arn = aws_imagebuilder_infrastructure_configuration.base.arn
-  distribution_configuration_arn   = aws_imagebuilder_distribution_configuration.base.arn
+  image_recipe_arn                 = aws_imagebuilder_image_recipe.this.arn
+  infrastructure_configuration_arn = aws_imagebuilder_infrastructure_configuration.this.arn
+  distribution_configuration_arn   = aws_imagebuilder_distribution_configuration.this.arn
+
+  enhanced_image_metadata_enabled = var.enhanced_image_metadata_enabled
 
   tags = merge(
     local.common_tags,
@@ -302,14 +334,14 @@ resource "aws_imagebuilder_image" "base" {
 # - the pipeline for recurring scheduled builds
 ################################################################################
 
-resource "aws_imagebuilder_image_pipeline" "base" {
+resource "aws_imagebuilder_image_pipeline" "this" {
   count = var.enable_pipeline ? 1 : 0
 
   name = local.pipeline_name
 
-  image_recipe_arn                 = aws_imagebuilder_image_recipe.base.arn
-  infrastructure_configuration_arn = aws_imagebuilder_infrastructure_configuration.base.arn
-  distribution_configuration_arn   = aws_imagebuilder_distribution_configuration.base.arn
+  image_recipe_arn                 = aws_imagebuilder_image_recipe.this.arn
+  infrastructure_configuration_arn = aws_imagebuilder_infrastructure_configuration.this.arn
+  distribution_configuration_arn   = aws_imagebuilder_distribution_configuration.this.arn
 
   image_tests_configuration {
     image_tests_enabled = var.enable_image_tests

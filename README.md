@@ -476,6 +476,76 @@ The security group must permit whatever outbound connectivity is required by the
 
 ---
 
+## `key_pair`
+
+Optional EC2 key pair name for SSH access to the temporary build instance.
+
+Example:
+
+```hcl
+key_pair = "ami-builder-debug-key"
+```
+
+Useful for debugging a failed build interactively. Not required when the build instance's IAM profile grants SSM access instead.
+
+---
+
+## `logging_s3_bucket_name` / `logging_s3_key_prefix`
+
+S3 bucket (and optional key prefix) where Image Builder uploads build logs.
+
+Example:
+
+```hcl
+logging_s3_bucket_name = "my-ami-builder-logs"
+logging_s3_key_prefix  = "ami-builder"
+```
+
+Without this, diagnosing a failed build relies entirely on the console/CLI build history rather than the full build log output.
+
+---
+
+## `resource_tags`
+
+Tags Image Builder applies to resources it creates *during* the build itself -- the temporary EC2 instance, EBS snapshots -- as distinct from `tags`, which apply to the Image Builder resources this module manages (the component, recipe, infrastructure configuration, and so on).
+
+Example:
+
+```hcl
+resource_tags = {
+  Purpose = "ami-build-temporary"
+}
+```
+
+---
+
+## `sns_topic_arn`
+
+Optional SNS topic ARN Image Builder publishes build and pipeline events to.
+
+Example:
+
+```hcl
+sns_topic_arn = aws_sns_topic.ami_builder_events.arn
+```
+
+---
+
+## `placement_tenancy` / `placement_availability_zone`
+
+Optional instance placement for the temporary build instance.
+
+Example:
+
+```hcl
+placement_tenancy           = "dedicated"
+placement_availability_zone = "us-east-1a"
+```
+
+Leave both unset (the default) to let AWS Image Builder choose placement automatically.
+
+---
+
 # Immediate AMI Build
 
 ## `build_image`
@@ -503,6 +573,20 @@ build_image = true
 ```
 
 Terraform creates the Image Builder image resource and AWS Image Builder starts the build.
+
+---
+
+## `enhanced_image_metadata_enabled`
+
+Whether Image Builder collects additional metadata about the image being created.
+
+Example:
+
+```hcl
+enhanced_image_metadata_enabled = true  # default
+```
+
+Only takes effect when `build_image = true`, since it applies to the image resource itself.
 
 ---
 
@@ -687,7 +771,7 @@ A caller can use this generic module to create an Ubuntu AMI by supplying Ubuntu
 
 ```hcl
 module "ubuntu_ami" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-ami-builder.git?ref=v1.0.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-ami-builder.git?ref=v2.0.0"
 
   project_name = "blueprints"
   environment  = "development"
@@ -1012,6 +1096,27 @@ The resulting AMIs may have lifecycle implications outside the Terraform resourc
 
 ---
 
+# Upgrading to v2.0.0
+
+v2.0.0 renames every resource's Terraform label from `.base` to `.this`, matching the naming convention used across the companion `profile`, `launch-template`, and `autoscaling` modules. This is an addition-only change to the module's variable interface -- nothing was removed or renamed -- but the resource rename itself means Terraform will otherwise plan to **destroy and recreate every resource** on an existing deployment's next apply, since Terraform tracks resources by their label, not their configuration.
+
+Before applying v2.0.0 against an existing deployment, migrate state first:
+
+```powershell
+terraform state mv aws_imagebuilder_component.base aws_imagebuilder_component.this
+terraform state mv aws_imagebuilder_image_recipe.base aws_imagebuilder_image_recipe.this
+terraform state mv aws_imagebuilder_infrastructure_configuration.base aws_imagebuilder_infrastructure_configuration.this
+terraform state mv aws_imagebuilder_distribution_configuration.base aws_imagebuilder_distribution_configuration.this
+terraform state mv 'aws_imagebuilder_image.base[0]' 'aws_imagebuilder_image.this[0]'  # only if build_image = true
+terraform state mv 'aws_imagebuilder_image_pipeline.base[0]' 'aws_imagebuilder_image_pipeline.this[0]'  # only if enable_pipeline = true
+```
+
+Then run `terraform plan` and confirm it shows no destroy/recreate actions before applying.
+
+v2.0.0 also adds `key_pair`, `logging_s3_bucket_name` / `logging_s3_key_prefix`, `resource_tags`, `sns_topic_arn`, `placement_tenancy` / `placement_availability_zone`, and `enhanced_image_metadata_enabled` -- all optional, all defaulting to prior behavior.
+
+---
+
 # Module Repository
 
 Recommended repository name:
@@ -1030,7 +1135,7 @@ Example module reference:
 
 ```hcl
 module "ami_builder" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-ami-builder.git?ref=v1.0.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-ami-builder.git?ref=v2.0.0"
 }
 ```
 
