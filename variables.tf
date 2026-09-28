@@ -140,6 +140,17 @@ variable "recipe_version" {
 # STORAGE
 ################################################################################
 
+variable "root_device_name" {
+  type        = string
+  description = "Device name of the parent image's root volume, which the recipe resizes (root_volume_size, root_volume_type). It must match the parent image: Amazon Linux uses /dev/xvda, Ubuntu /dev/sda1. Any other name adds a second, separate volume to every instance built from the image and leaves the root at the parent image's size."
+  default     = "/dev/xvda"
+
+  validation {
+    condition     = can(regex("^/dev/[a-z0-9]+$", var.root_device_name))
+    error_message = "root_device_name must be a device path such as /dev/xvda or /dev/sda1."
+  }
+}
+
 variable "root_volume_size" {
   type        = number
   description = "Size in GiB of the encrypted root EBS volume included in the resulting AMI."

@@ -265,6 +265,8 @@ These commands are executed inside the temporary Image Builder build instance.
 
 The resulting filesystem becomes part of the AMI.
 
+The commands run as one bash script, which the module starts with `set -eo pipefail`: the first command that fails stops the build, and the image is not created. (Image Builder's `ExecuteBash` does not stop at a failed command on its own, so before v2.1.0 a failed install could still produce an image, without the software.) The validation commands run the same way.
+
 ---
 
 ## `component_validate_commands`
@@ -364,6 +366,18 @@ Increment this when the recipe itself changes, such as changing the parent image
 ---
 
 # Root EBS Configuration
+
+## `root_device_name`
+
+Device name of the parent image's root volume. The recipe resizes that volume with `root_volume_size` and `root_volume_type`.
+
+```hcl
+root_device_name = "/dev/sda1" # Ubuntu; Amazon Linux uses /dev/xvda (the default)
+```
+
+It must match the parent image. Any other name adds a second, separate volume to the image, so every instance gets an extra disk and the root keeps the parent image's size.
+
+---
 
 ## `root_volume_size`
 
@@ -771,7 +785,7 @@ A caller can use this generic module to create an Ubuntu AMI by supplying Ubuntu
 
 ```hcl
 module "ubuntu_ami" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-ami-builder.git?ref=v2.0.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-ami-builder.git?ref=v2.1.0"
 
   project_name = "blueprints"
   environment  = "development"
@@ -1135,7 +1149,7 @@ Example module reference:
 
 ```hcl
 module "ami_builder" {
-  source = "git::https://github.com/iamwonodi/terraform-aws-ami-builder.git?ref=v2.0.0"
+  source = "git::https://github.com/iamwonodi/terraform-aws-ami-builder.git?ref=v2.1.0"
 }
 ```
 
@@ -1177,3 +1191,9 @@ Reusable AMI
 ```
 
 The key design principle is that **the module provides the Image Builder machinery while the caller provides the operating-system and software decisions**.
+
+---
+
+# Releases
+
+* `v2.1.0`: the build and validation scripts start with `set -eo pipefail`, so a failed command fails the image instead of being ignored. New optional input `root_device_name` (default `/dev/xvda`, as before) names the parent image's root device; an Ubuntu parent needs `/dev/sda1`, otherwise the recipe added a second 24 GiB volume to the image and left the root at 8 GiB. Plan tests cover both. A build whose scripts contained a failing command will now fail: that command never worked.

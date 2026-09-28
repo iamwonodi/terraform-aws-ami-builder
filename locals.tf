@@ -42,6 +42,16 @@ locals {
     : ["echo 'No custom validation commands configured.'"]
   )
 
+  # ExecuteBash runs its commands as one bash script, which does not stop at a
+  # failed command: only the last one decides whether the step passes. A failed
+  # install could therefore produce an image without the software, and a failed
+  # check pass validation. Every script starts by stopping at the first failure.
+  # (No -u: callers' scripts may rely on unset variables.)
+  script_preamble = ["set -eo pipefail"]
+
+  build_script      = concat(local.script_preamble, var.component_build_commands)
+  validation_script = concat(local.script_preamble, local.validation_commands)
+
   common_tags = merge(
     var.tags,
     {

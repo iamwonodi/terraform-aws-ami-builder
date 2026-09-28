@@ -63,7 +63,7 @@ resource "aws_imagebuilder_component" "this" {
             onFailure = "Abort"
 
             inputs = {
-              commands = var.component_build_commands
+              commands = local.build_script
             }
           }
         ]
@@ -79,7 +79,7 @@ resource "aws_imagebuilder_component" "this" {
             onFailure = "Abort"
 
             inputs = {
-              commands = local.validation_commands
+              commands = local.validation_script
             }
           }
         ]
@@ -123,8 +123,10 @@ resource "aws_imagebuilder_image_recipe" "this" {
     component_arn = aws_imagebuilder_component.this.arn
   }
 
+  # Resizes the parent image's root volume. The name must be the parent's root
+  # device; any other name would add a second volume instead.
   block_device_mapping {
-    device_name = "/dev/xvda"
+    device_name = var.root_device_name
 
     ebs {
       delete_on_termination = true
